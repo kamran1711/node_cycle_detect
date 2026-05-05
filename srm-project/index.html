@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BFHL Graph Analyzer</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --border: #334155;
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+      color: var(--text);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background: var(--primary-hover);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pill {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin: 0.25rem;
+    }
+    .pill.danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .pill.warning { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .tree-node {
+      margin-left: 1.5rem;
+      border-left: 2px solid var(--border);
+      padding-left: 1rem;
+      margin-top: 0.5rem;
+    }
+    .node-label {
+      background: var(--bg);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: inline-block;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    .error-msg {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    #results { display: none; }
+    .cycle-badge {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      margin-left: 0.5rem;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BFHL Graph Analyzer</h1>
+    
+    <div class="card">
+      <div id="errorBox" class="error-msg"></div>
+      <label for="input" style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Enter edges (comma separated)</label>
+      <textarea id="input" placeholder="A->B, B->C, C->D"></textarea>
+      <button onclick="analyzeGraph()" id="submitBtn">Analyze Graph</button>
+    </div>
+
+    <div id="results">
+      <div class="card">
+        <h2>Summary</h2>
+        <div class="grid" id="summaryGrid"></div>
+      </div>
+
+      <div class="card" id="issuesCard" style="display: none;">
+        <h2>Issues</h2>
+        <div>
+          <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Invalid Entries</h3>
+          <div id="invalidEntries"></div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Duplicate Edges</h3>
+          <div id="duplicateEdges"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Hierarchies</h2>
+        <div id="hierarchiesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function renderTree(treeObj) {
+      if (!treeObj || Object.keys(treeObj).length === 0) return '';
+      
+      let html = '';
+      for (const [node, children] of Object.entries(treeObj)) {
+        html += `<div class="tree-node">
+          <div class="node-label">${node}</div>
+          ${renderTree(children)}
+        </div>`;
+      }
+      return html;
+    }
+
+    async function analyzeGraph() {
+      const btn = document.getElementById('submitBtn');
+      const errorBox = document.getElementById('errorBox');
+      const resultsDiv = document.getElementById('results');
+      
+      btn.innerText = 'Analyzing...';
+      btn.disabled = true;
+      errorBox.style.display = 'none';
+      resultsDiv.style.display = 'none';
+
+      const rawInput = document.getElementById("input").value;
+      const data = rawInput.split(",").map(i => i.trim()).filter(i => i);
+
+      try {
+        const res = await fetch("http://localhost:3000/bfhl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data })
+        });
+
+        if (!res.ok) throw new Error('API request failed');
+        
+        const json = await res.json();
+        
+        // Render Summary
+        document.getElementById('summaryGrid').innerHTML = `
+          <div class="stat-card">
+            <div class="stat-value">${json.summary.total_trees}</div>
+            <div class="stat-label">Valid Trees</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${json.summary.total_cycles}</div>
+            <div class="stat-label">Cycles Detected</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${json.summary.largest_tree_root || '-'}</div>
+            <div class="stat-label">Largest Root</div>
+          </div>
+        `;
+
+        // Render Issues
+        const invalidDiv = document.getElementById('invalidEntries');
+        const duplicateDiv = document.getElementById('duplicateEdges');
+        const issuesCard = document.getElementById('issuesCard');
+        
+        invalidDiv.innerHTML = json.invalid_entries.map(e => `<span class="pill danger">${e}</span>`).join('') || '<span class="pill" style="background:var(--bg)">None</span>';
+        duplicateDiv.innerHTML = json.duplicate_edges.map(e => `<span class="pill warning">${e}</span>`).join('') || '<span class="pill" style="background:var(--bg)">None</span>';
+        
+        if (json.invalid_entries.length > 0 || json.duplicate_edges.length > 0) {
+          issuesCard.style.display = 'block';
+        } else {
+          issuesCard.style.display = 'none';
+        }
+
+        // Render Hierarchies
+        const hierarchiesList = document.getElementById('hierarchiesList');
+        hierarchiesList.innerHTML = '';
+        
+        if (json.hierarchies.length === 0) {
+          hierarchiesList.innerHTML = '<p style="color: var(--text-muted);">No valid hierarchies found.</p>';
+        } else {
+          json.hierarchies.forEach(h => {
+            const hCard = document.createElement('div');
+            hCard.style.cssText = 'background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;';
+            
+            let content = `<h3 style="margin-bottom: 1rem;">Root: ${h.root} ${h.has_cycle ? '<span class="cycle-badge">Cycle Detected</span>' : ''}</h3>`;
+            
+            if (h.has_cycle) {
+              content += `<p style="color: var(--text-muted);">Cannot render tree due to cyclic dependencies.</p>`;
+            } else {
+              content += `<div style="margin-left: -1.5rem;">${renderTree(h.tree)}</div>`;
+            }
+            
+            hCard.innerHTML = content;
+            hierarchiesList.appendChild(hCard);
+          });
+        }
+
+        resultsDiv.style.display = 'block';
+      } catch (err) {
+        errorBox.innerText = "Error: Could not connect to the API. Make sure the backend server is running.";
+        errorBox.style.display = 'block';
+      } finally {
+        btn.innerText = 'Analyze Graph';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
